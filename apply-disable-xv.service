@@ -1,0 +1,13 @@
+[Unit]
+Description=Apply Xv disable configuration (one-shot, local-only)
+After=multi-user.target
+# This unit is intended to run locally at boot. It should not be exposed for remote activation.
+
+[Service]
+Type=oneshot
+# Adjust the path to your script if you install it elsewhere
+ExecStart=/usr/local/bin/disable-xv.sh --force
+RemainAfterExit=true
+
+[Install]
+WantedBy=multi-user.target
