@@ -1,0 +1,23 @@
+[Unit]
+Description=Security Idle Scan (network & host checks)
+ConditionACPower=true
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/security_idle_scan.sh
+Nice=10
+IOSchedulingClass=idle
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+LockPersonality=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+ReadWritePaths=/var/log/security_idle_scan
+CapabilityBoundingSet=CAP_NET_RAW CAP_NET_ADMIN
+AmbientCapabilities=CAP_NET_RAW CAP_NET_ADMIN
+
+[Install]
+WantedBy=multi-user.target

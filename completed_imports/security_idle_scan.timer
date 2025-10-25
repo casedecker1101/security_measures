@@ -1,0 +1,12 @@
+[Unit]
+Description=Run Security Idle Scan periodically when idle
+
+[Timer]
+OnCalendar=hourly
+RandomizedDelaySec=900
+AccuracySec=1m
+Persistent=true
+# Idle trigger heuristic via ExecStartPre inside service script (load + users)
+
+[Install]
+WantedBy=timers.target

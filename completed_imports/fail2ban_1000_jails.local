@@ -1,0 +1,317 @@
+# Attempt at a large common fail2ban jail set (enables all available jails/filters on this host)
+[DEFAULT]
+backend = auto
+banaction = nftables-multiport
+bantime = 1h
+findtime = 10m
+maxretry = 3
+bantime.increment = true
+[3proxy]
+enabled = true
+
+[apache-auth]
+enabled = true
+
+[apache-badbots]
+enabled = true
+
+[apache-botsearch]
+enabled = true
+
+[apache-common]
+enabled = true
+
+[apache-fakegooglebot]
+enabled = true
+
+[apache-modsecurity]
+enabled = true
+
+[apache-nohome]
+enabled = true
+
+[apache-noscript]
+enabled = true
+
+[apache-overflows]
+enabled = true
+
+[apache-pass]
+enabled = true
+
+[apache-shellshock]
+enabled = true
+
+[assp]
+enabled = true
+
+[asterisk]
+enabled = true
+
+[bitwarden]
+enabled = true
+
+[botsearch-common]
+enabled = true
+
+[centreon]
+enabled = true
+
+[common]
+enabled = true
+
+[counter-strike]
+enabled = true
+
+[courier-auth]
+enabled = true
+
+[courier-smtp]
+enabled = true
+
+[cyrus-imap]
+enabled = true
+
+[dante]
+enabled = true
+
+[directadmin]
+enabled = true
+
+[domino-smtp]
+enabled = true
+
+[dovecot]
+enabled = true
+
+[dropbear]
+enabled = true
+
+[drupal-auth]
+enabled = true
+
+[ejabberd-auth]
+enabled = true
+
+[exim]
+enabled = true
+
+[exim-common]
+enabled = true
+
+[exim-spam]
+enabled = true
+
+[freeswitch]
+enabled = true
+
+[froxlor-auth]
+enabled = true
+
+[gitlab]
+enabled = true
+
+[grafana]
+enabled = true
+
+[groupoffice]
+enabled = true
+
+[gssftpd]
+enabled = true
+
+[guacamole]
+enabled = true
+
+[haproxy-http-auth]
+enabled = true
+
+[horde]
+enabled = true
+
+[kerio]
+enabled = true
+
+[lighttpd-auth]
+enabled = true
+
+[mongodb-auth]
+enabled = true
+
+[monit]
+enabled = true
+
+[monitorix]
+enabled = true
+
+[mssql-auth]
+enabled = true
+
+[murmur]
+enabled = true
+
+[mysqld-auth]
+enabled = true
+
+[nagios]
+enabled = true
+
+[named-refused]
+enabled = true
+
+[nginx-bad-request]
+enabled = true
+
+[nginx-botsearch]
+enabled = true
+
+[nginx-error-common]
+enabled = true
+
+[nginx-forbidden]
+enabled = true
+
+[nginx-http-auth]
+enabled = true
+
+[nginx-limit-req]
+enabled = true
+
+[nsd]
+enabled = true
+
+[openhab]
+enabled = true
+
+[openhab-auth]
+enabled = true
+
+[openwebmail]
+enabled = true
+
+[oracleims]
+enabled = true
+
+[pam-generic]
+enabled = true
+
+[pass2allow-ftp]
+enabled = true
+
+[perdition]
+enabled = true
+
+[phpmyadmin-syslog]
+enabled = true
+
+[php-url-fopen]
+enabled = true
+
+[portsentry]
+enabled = true
+
+[postfix]
+enabled = true
+
+[postfix-rbl]
+enabled = true
+
+[postfix-sasl]
+enabled = true
+
+[proftpd]
+enabled = true
+
+[pure-ftpd]
+enabled = true
+
+[qmail]
+enabled = true
+
+[qmail-rbl]
+enabled = true
+
+[recidive]
+enabled = true
+
+[roundcube-auth]
+enabled = true
+
+[routeros-auth]
+enabled = true
+
+[scanlogd]
+enabled = true
+
+[screensharingd]
+enabled = true
+
+[selinux-common]
+enabled = true
+
+[selinux-ssh]
+enabled = true
+
+[sendmail-auth]
+enabled = true
+
+[sendmail-reject]
+enabled = true
+
+[sieve]
+enabled = true
+
+[slapd]
+enabled = true
+
+[softethervpn]
+enabled = true
+
+[sogo-auth]
+enabled = true
+
+[solid-pop3d]
+enabled = true
+
+[squid]
+enabled = true
+
+[squirrelmail]
+enabled = true
+
+[sshd]
+enabled = true
+
+[stunnel]
+enabled = true
+
+[suhosin]
+enabled = true
+
+[tine20]
+enabled = true
+
+[traefik-auth]
+enabled = true
+
+[uwimap-auth]
+enabled = true
+
+[vsftpd]
+enabled = true
+
+[webmin-auth]
+enabled = true
+
+[wuftpd]
+enabled = true
+
+[xinetd-fail]
+enabled = true
+
+[znc-adminlog]
+enabled = true
+
+[zoneminder]
+enabled = true
+
