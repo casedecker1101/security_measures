@@ -1,0 +1,574 @@
+================================================================================
+FIREWALL SECURITY REPORT
+Generated: 20251014_020200
+================================================================================
+
+FIREWALLD CONFIGURATION
+--------------------------------------------------------------------------------
+Status: Active
+Default Zone: public
+Enabled Services: dhcpv6-client
+Open Ports: 
+
+All Zones Configuration:
+block (active)
+  target: %%REJECT%%
+  ingress-priority: 0
+  egress-priority: 0
+  icmp-block-inversion: no
+  interfaces: lo
+  sources: 
+  services: 
+  ports: 
+  protocols: 
+  forward: yes
+  masquerade: no
+  forward-ports: 
+  source-ports: 
+  icmp-blocks: 
+  rich rules: 
+
+dmz
+  target: default
+  ingress-priority: 0
+  egress-priority: 0
+  icmp-block-inversion: no
+  interfaces: 
+  sources: 
+  services: 
+  ports: 
+  protocols: 
+  forward: yes
+  masquerade: no
+  forward-ports: 
+  source-ports: 
+  icmp-blocks: 
+  rich rules: 
+
+drop
+  target: DROP
+  ingress-priority: 0
+  egress-priority: 0
+  icmp-block-inversion: no
+  interfaces: 
+  sources: 
+  services: 
+  ports: 
+  protocols: 
+  forward: yes
+  masquerade: no
+  forward-ports: 
+  source-ports: 
+  icmp-blocks: 
+  rich rules: 
+
+external
+  target: default
+  ingress-priority: 0
+  egress-priority: 0
+  icmp-block-inversion: no
+  interfaces: 
+  sources: 
+  services: 
+  ports: 
+  protocols: 
+  forward: yes
+  masquerade: yes
+  forward-ports: 
+  source-ports: 
+  icmp-blocks: 
+  rich rules: 
+
+home
+  target: default
+  ingress-priority: 0
+  egress-priority: 0
+  icmp-block-inversion: no
+  interfaces: 
+  sources: 
+  services: dhcpv6-client mdns samba-client
+  ports: 
+  protocols: 
+  forward: yes
+  masquerade: no
+  forward-ports: 
+  source-ports: 
+  icmp-blocks: 
+  rich rules: 
+
+internal
+  target: default
+  ingress-priority: 0
+  egress-priority: 0
+  icmp-block-inversion: no
+  interfaces: 
+  sources: 
+  services: dhcpv6-client mdns samba-client
+  ports: 
+  protocols: 
+  forward: yes
+  masquerade: no
+  forward-ports: 
+  source-ports: 
+  icmp-blocks: 
+  rich rules: 
+
+nm-shared
+  target: ACCEPT
+  ingress-priority: 0
+  egress-priority: 0
+  icmp-block-inversion: no
+  interfaces: 
+  sources: 
+  services: dhcp dns
+  ports: 
+  protocols: icmp ipv6-icmp
+  forward: no
+  masquerade: no
+  forward-ports: 
+  source-ports: 
+  icmp-blocks: 
+  rich rules: 
+	rule priority="32767" reject
+
+public (default, active)
+  target: default
+  ingress-priority: 0
+  egress-priority: 0
+  icmp-block-inversion: no
+  interfaces: wlan0
+  sources: 
+  services: dhcpv6-client
+  ports: 
+  protocols: 
+  forward: yes
+  masquerade: no
+  forward-ports: 
+  source-ports: 
+  icmp-blocks: 
+  rich rules: 
+
+trusted
+  target: ACCEPT
+  ingress-priority: 0
+  egress-priority: 0
+  icmp-block-inversion: no
+  interfaces: 
+  sources: 
+  services: 
+  ports: 
+  protocols: 
+  forward: yes
+  masquerade: no
+  forward-ports: 
+  source-ports: 
+  icmp-blocks: 
+  rich rules: 
+
+work
+  target: default
+  ingress-priority: 0
+  egress-priority: 0
+  icmp-block-inversion: no
+  interfaces: 
+  sources: 
+  services: dhcpv6-client
+  ports: 
+  protocols: 
+  forward: yes
+  masquerade: no
+  forward-ports: 
+  source-ports: 
+  icmp-blocks: 
+  rich rules:
+
+UFW CONFIGURATION
+--------------------------------------------------------------------------------
+Status: Active
+
+UFW Status:
+Status: active
+Logging: on (high)
+Default: deny (incoming), allow (outgoing), disabled (routed)
+New profiles: reject
+
+To                         Action      From
+--                         ------      ----
+53                         DENY IN     Anywhere                  
+Anywhere                   DENY IN     192.178.164.0/24/tcp      
+Anywhere                   DENY IN     192.178.164.0/24/udp      
+Anywhere                   DENY IN     192.0.0.0/24/tcp          
+Anywhere                   DENY IN     142.0.0.0/24/tcp          
+Anywhere                   DENY IN     10.15.225.107/tcp         
+Anywhere                   DENY IN     10.15.0.0/24/tcp          
+Anywhere                   DENY IN     169.0.0.0/24/tcp          
+Anywhere                   DENY IN     200.0.0.0/24/tcp          
+Anywhere                   DENY IN     162.159.0.0/24/tcp        
+Anywhere                   DENY IN     151.101.0.0/24/tcp        
+Anywhere                   DENY IN     172.0.0.0/24/tcp          
+Anywhere                   DENY IN     13.0.0.0/24/tcp           
+Anywhere                   DENY IN     192.168.173.178/tcp       
+Anywhere                   DENY IN     192.168.109.99/tcp        
+Anywhere                   DENY IN     192.168.173.178/udp       
+Anywhere                   DENY IN     192.168.109.99/udp        
+Anywhere                   DENY IN     127.0.0.54/udp            
+Anywhere                   DENY IN     127.0.0.53/udp            
+Anywhere                   DENY IN     192.168.139.150/udp       
+Anywhere                   DENY IN     192.168.139.150/tcp       
+5353/udp                   DENY IN     Anywhere                   # Block mDNS
+5298                       DENY IN     Anywhere                  
+23/tcp                     DENY IN     Anywhere                   # Block Telnet
+22/tcp                     DENY IN     Anywhere                   # Block SSH
+137/udp                    DENY IN     Anywhere                   # Block NetBIOS-NS
+138/udp                    DENY IN     Anywhere                   # Block NetBIOS-DGM
+139/tcp                    DENY IN     Anywhere                   # Block NetBIOS
+445/tcp                    DENY IN     Anywhere                   # Block SMB
+5900:5910/tcp              DENY IN     Anywhere                   # Block VNC
+3690/tcp                   DENY IN     Anywhere                  
+5222/tcp                   DENY IN     Anywhere                  
+5269/tcp                   DENY IN     Anywhere                  
+3389/tcp                   DENY IN     Anywhere                   # Block RDP
+3306/tcp                   DENY IN     Anywhere                   # Block MySQL
+5432/tcp                   DENY IN     Anywhere                   # Block PostgreSQL
+6379/tcp                   DENY IN     Anywhere                   # Block Redis
+161/udp                    DENY IN     Anywhere                   # Block SNMP
+69/udp                     DENY IN     Anywhere                   # Block TFTP
+111/tcp                    DENY IN     Anywhere                   # Block RPC
+8080/tcp                   DENY IN     Anywhere                   # Block HTTP-Alt/Streaming
+8554/tcp                   DENY IN     Anywhere                   # Block RTSP
+1935/tcp                   DENY IN     Anywhere                   # Block RTMP
+4840/tcp                   DENY IN     Anywhere                   # Block Miracast
+7236/tcp                   DENY IN     Anywhere                   # Block Miracast-Ctrl
+513/tcp                    DENY IN     Anywhere                   # Block rlogin
+514/tcp                    DENY IN     Anywhere                   # Block rsh
+512/tcp                    DENY IN     Anywhere                   # Block rexec
+5800:5810/tcp              DENY IN     Anywhere                   # Block VNC-Web
+6001:6010/tcp              DENY IN     Anywhere                   # Block X11-Forward
+1900/udp                   DENY IN     Anywhere                   # Block SSDP/UPnP
+8009/tcp                   DENY IN     Anywhere                   # Block Chromecast
+8008/tcp                   DENY IN     Anywhere                   # Block Chromecast-Alt
+7250/tcp                   DENY IN     Anywhere                   # Block Miracast-Data
+2049/tcp                   DENY IN     Anywhere                   # Block NFS
+20/tcp                     DENY IN     Anywhere                   # Block FTP-Data
+21/tcp                     DENY IN     Anywhere                   # Block FTP-Control
+554/tcp                    DENY IN     Anywhere                   # Block RTSP-Alt
+5004/tcp                   DENY IN     Anywhere                   # Block RTP
+5005/tcp                   DENY IN     Anywhere                   # Block RTCP
+9090/tcp                   DENY IN     Anywhere                   # Block Cockpit
+10000/tcp                  DENY IN     Anywhere                   # Block Webmin
+5060/tcp                   DENY IN     Anywhere                   # Block SIP
+5061/tcp                   DENY IN     Anywhere                   # Block SIP-TLS
+1723/tcp                   DENY IN     Anywhere                   # Block PPTP
+1701/udp                   DENY IN     Anywhere                   # Block L2TP
+500/udp                    DENY IN     Anywhere                   # Block IKE/IPSec
+4500/udp                   DENY IN     Anywhere                   # Block IPSec-NAT
+67/udp                     DENY IN     Anywhere                  
+135/tcp                    DENY IN     Anywhere                  
+123,500,1080,1194,1494,2598,3074,3283/tcp DENY IN     Anywhere                  
+123,500,1080,1194,1494,2598,3074,3283/udp DENY IN     Anywhere                  
+5129,5223,5224,5228,5229,5230,5349,5500,5800,5801,5802,5803/tcp DENY IN     Anywhere                  
+5129,5222,5223,5224,5228,5229,5230,5349,5500,5800,5801,5802,5803/udp DENY IN     Anywhere                  
+5938,5939,6129,6568,6783,6881/tcp DENY IN     Anywhere                  
+5938,5939,6129,6568,6783,6881/udp DENY IN     Anywhere                  
+6882,6883,6884,6885,6886,6887,6888,6889,8081,8088,8443,8801,8802,8803/tcp DENY IN     Anywhere                  
+6882,6883,6884,6885,6886,6887,6888,6889,8081,8088,8443,8801,8802,8803/udp DENY IN     Anywhere                  
+8804,8805,9030,9080,9150,17500,21115,21116,27015,27036,50001,50002/tcp DENY IN     Anywhere                   # Remote app block
+8804,8805,9030,9080,9150,17500,21115,21116,27015,27036,50001,50002/udp DENY IN     Anywhere                   # Remote app block
+5000/tcp                   DENY IN     Anywhere                   # Block stream-5000
+80/tcp                     DENY IN     Anywhere                   # Block HTTP
+443/tcp                    DENY IN     Anywhere                   # Block HTTPS
+8443/tcp                   DENY IN     Anywhere                   # Block HTTPS-Alt
+22,53,80,123,443,500,1080,1194,1494,1701,1723,1935,2598,3074,3283/tcp DENY IN     Anywhere                   # Remote app block
+3390,3391,3478,3479,3480,3481,3659,4000,4172,4244,4443,4500,5000,5060,5061/tcp DENY IN     Anywhere                   # Remote app block
+5129,5222,5223,5224,5228,5229,5230,5349,5500,5800,5801,5802,5803,5900,5901/tcp DENY IN     Anywhere                   # Remote app block
+5902,5903,5904,5905,5906,5907,5908,5909,5938,5939,6010,6129,6568,6783,6881/tcp DENY IN     Anywhere                   # Remote app block
+6882,6883,6884,6885,6886,6887,6888,6889,8080,8081,8088,8443,8801,8802,8803/tcp DENY IN     Anywhere                   # Remote app block
+22,53,80,123,443,500,1080,1194,1494,1701,1723,1935,2598,3074,3283/udp DENY IN     Anywhere                   # Remote app block
+3390,3391,3478,3479,3480,3481,3659,4000,4172,4244,4443,4500,5000,5060,5061/udp DENY IN     Anywhere                   # Remote app block
+5129,5222,5223,5224,5228,5229,5230,5349,5500,5800,5801,5802,5803,5900,5901/udp DENY IN     Anywhere                   # Remote app block
+5902,5903,5904,5905,5906,5907,5908,5909,5938,5939,6010,6129,6568,6783,6881/udp DENY IN     Anywhere                   # Remote app block
+6882,6883,6884,6885,6886,6887,6888,6889,8080,8081,8088,8443,8801,8802,8803/udp DENY IN     Anywhere                   # Remote app block
+53 (v6)                    DENY IN     Anywhere (v6)             
+Anywhere (v6)              DENY IN     2600:382::/64/tcp         
+Anywhere (v6)              DENY IN     2600:382:628d:860d:d529:e733:bb52:5799/tcp
+5353/udp (v6)              DENY IN     Anywhere (v6)              # Block mDNS
+5298 (v6)                  DENY IN     Anywhere (v6)             
+23/tcp (v6)                DENY IN     Anywhere (v6)              # Block Telnet
+22/tcp (v6)                DENY IN     Anywhere (v6)              # Block SSH
+137/udp (v6)               DENY IN     Anywhere (v6)              # Block NetBIOS-NS
+138/udp (v6)               DENY IN     Anywhere (v6)              # Block NetBIOS-DGM
+139/tcp (v6)               DENY IN     Anywhere (v6)              # Block NetBIOS
+445/tcp (v6)               DENY IN     Anywhere (v6)              # Block SMB
+5900:5910/tcp (v6)         DENY IN     Anywhere (v6)              # Block VNC
+3690/tcp (v6)              DENY IN     Anywhere (v6)             
+5222/tcp (v6)              DENY IN     Anywhere (v6)             
+5269/tcp (v6)              DENY IN     Anywhere (v6)             
+3389/tcp (v6)              DENY IN     Anywhere (v6)              # Block RDP
+3306/tcp (v6)              DENY IN     Anywhere (v6)              # Block MySQL
+5432/tcp (v6)              DENY IN     Anywhere (v6)              # Block PostgreSQL
+6379/tcp (v6)              DENY IN     Anywhere (v6)              # Block Redis
+161/udp (v6)               DENY IN     Anywhere (v6)              # Block SNMP
+69/udp (v6)                DENY IN     Anywhere (v6)              # Block TFTP
+111/tcp (v6)               DENY IN     Anywhere (v6)              # Block RPC
+8080/tcp (v6)              DENY IN     Anywhere (v6)              # Block HTTP-Alt/Streaming
+8554/tcp (v6)              DENY IN     Anywhere (v6)              # Block RTSP
+1935/tcp (v6)              DENY IN     Anywhere (v6)              # Block RTMP
+4840/tcp (v6)              DENY IN     Anywhere (v6)              # Block Miracast
+7236/tcp (v6)              DENY IN     Anywhere (v6)              # Block Miracast-Ctrl
+513/tcp (v6)               DENY IN     Anywhere (v6)              # Block rlogin
+514/tcp (v6)               DENY IN     Anywhere (v6)              # Block rsh
+512/tcp (v6)               DENY IN     Anywhere (v6)              # Block rexec
+5800:5810/tcp (v6)         DENY IN     Anywhere (v6)              # Block VNC-Web
+6001:6010/tcp (v6)         DENY IN     Anywhere (v6)              # Block X11-Forward
+1900/udp (v6)              DENY IN     Anywhere (v6)              # Block SSDP/UPnP
+8009/tcp (v6)              DENY IN     Anywhere (v6)              # Block Chromecast
+8008/tcp (v6)              DENY IN     Anywhere (v6)              # Block Chromecast-Alt
+7250/tcp (v6)              DENY IN     Anywhere (v6)              # Block Miracast-Data
+2049/tcp (v6)              DENY IN     Anywhere (v6)              # Block NFS
+20/tcp (v6)                DENY IN     Anywhere (v6)              # Block FTP-Data
+21/tcp (v6)                DENY IN     Anywhere (v6)              # Block FTP-Control
+554/tcp (v6)               DENY IN     Anywhere (v6)              # Block RTSP-Alt
+5004/tcp (v6)              DENY IN     Anywhere (v6)              # Block RTP
+5005/tcp (v6)              DENY IN     Anywhere (v6)              # Block RTCP
+9090/tcp (v6)              DENY IN     Anywhere (v6)              # Block Cockpit
+10000/tcp (v6)             DENY IN     Anywhere (v6)              # Block Webmin
+5060/tcp (v6)              DENY IN     Anywhere (v6)              # Block SIP
+5061/tcp (v6)              DENY IN     Anywhere (v6)              # Block SIP-TLS
+1723/tcp (v6)              DENY IN     Anywhere (v6)              # Block PPTP
+1701/udp (v6)              DENY IN     Anywhere (v6)              # Block L2TP
+500/udp (v6)               DENY IN     Anywhere (v6)              # Block IKE/IPSec
+4500/udp (v6)              DENY IN     Anywhere (v6)              # Block IPSec-NAT
+67/udp (v6)                DENY IN     Anywhere (v6)             
+135/tcp (v6)               DENY IN     Anywhere (v6)             
+123,500,1080,1194,1494,2598,3074,3283/tcp (v6) DENY IN     Anywhere (v6)             
+123,500,1080,1194,1494,2598,3074,3283/udp (v6) DENY IN     Anywhere (v6)             
+5129,5223,5224,5228,5229,5230,5349,5500,5800,5801,5802,5803/tcp (v6) DENY IN     Anywhere (v6)             
+5129,5222,5223,5224,5228,5229,5230,5349,5500,5800,5801,5802,5803/udp (v6) DENY IN     Anywhere (v6)             
+5938,5939,6129,6568,6783,6881/tcp (v6) DENY IN     Anywhere (v6)             
+5938,5939,6129,6568,6783,6881/udp (v6) DENY IN     Anywhere (v6)             
+6882,6883,6884,6885,6886,6887,6888,6889,8081,8088,8443,8801,8802,8803/tcp (v6) DENY IN     Anywhere (v6)             
+6882,6883,6884,6885,6886,6887,6888,6889,8081,8088,8443,8801,8802,8803/udp (v6) DENY IN     Anywhere (v6)             
+8804,8805,9030,9080,9150,17500,21115,21116,27015,27036,50001,50002/tcp (v6) DENY IN     Anywhere (v6)              # Remote app block
+8804,8805,9030,9080,9150,17500,21115,21116,27015,27036,50001,50002/udp (v6) DENY IN     Anywhere (v6)              # Remote app block
+5000/tcp (v6)              DENY IN     Anywhere (v6)              # Block stream-5000
+80/tcp (v6)                DENY IN     Anywhere (v6)              # Block HTTP
+443/tcp (v6)               DENY IN     Anywhere (v6)              # Block HTTPS
+8443/tcp (v6)              DENY IN     Anywhere (v6)              # Block HTTPS-Alt
+22,53,80,123,443,500,1080,1194,1494,1701,1723,1935,2598,3074,3283/tcp (v6) DENY IN     Anywhere (v6)              # Remote app block
+3390,3391,3478,3479,3480,3481,3659,4000,4172,4244,4443,4500,5000,5060,5061/tcp (v6) DENY IN     Anywhere (v6)              # Remote app block
+5129,5222,5223,5224,5228,5229,5230,5349,5500,5800,5801,5802,5803,5900,5901/tcp (v6) DENY IN     Anywhere (v6)              # Remote app block
+5902,5903,5904,5905,5906,5907,5908,5909,5938,5939,6010,6129,6568,6783,6881/tcp (v6) DENY IN     Anywhere (v6)              # Remote app block
+6882,6883,6884,6885,6886,6887,6888,6889,8080,8081,8088,8443,8801,8802,8803/tcp (v6) DENY IN     Anywhere (v6)              # Remote app block
+22,53,80,123,443,500,1080,1194,1494,1701,1723,1935,2598,3074,3283/udp (v6) DENY IN     Anywhere (v6)              # Remote app block
+3390,3391,3478,3479,3480,3481,3659,4000,4172,4244,4443,4500,5000,5060,5061/udp (v6) DENY IN     Anywhere (v6)              # Remote app block
+5129,5222,5223,5224,5228,5229,5230,5349,5500,5800,5801,5802,5803,5900,5901/udp (v6) DENY IN     Anywhere (v6)              # Remote app block
+5902,5903,5904,5905,5906,5907,5908,5909,5938,5939,6010,6129,6568,6783,6881/udp (v6) DENY IN     Anywhere (v6)              # Remote app block
+6882,6883,6884,6885,6886,6887,6888,6889,8080,8081,8088,8443,8801,8802,8803/udp (v6) DENY IN     Anywhere (v6)              # Remote app block
+
+UFW Rules:
+Status: active
+
+     To                         Action      From
+     --                         ------      ----
+[ 1] 53                         DENY IN     Anywhere                  
+[ 2] Anywhere                   DENY IN     192.178.164.0/24/tcp      
+[ 3] Anywhere                   DENY IN     192.178.164.0/24/udp      
+[ 4] Anywhere                   DENY IN     192.0.0.0/24/tcp          
+[ 5] Anywhere                   DENY IN     142.0.0.0/24/tcp          
+[ 6] Anywhere                   DENY IN     10.15.225.107/tcp         
+[ 7] Anywhere                   DENY IN     10.15.0.0/24/tcp          
+[ 8] Anywhere                   DENY IN     169.0.0.0/24/tcp          
+[ 9] Anywhere                   DENY IN     200.0.0.0/24/tcp          
+[10] Anywhere                   DENY IN     162.159.0.0/24/tcp        
+[11] Anywhere                   DENY IN     151.101.0.0/24/tcp        
+[12] Anywhere                   DENY IN     172.0.0.0/24/tcp          
+[13] Anywhere                   DENY IN     13.0.0.0/24/tcp           
+[14] Anywhere                   DENY IN     192.168.173.178/tcp       
+[15] Anywhere                   DENY IN     192.168.109.99/tcp        
+[16] Anywhere                   DENY IN     192.168.173.178/udp       
+[17] Anywhere                   DENY IN     192.168.109.99/udp        
+[18] Anywhere                   DENY IN     127.0.0.54/udp            
+[19] Anywhere                   DENY IN     127.0.0.53/udp            
+[20] Anywhere                   DENY IN     192.168.139.150/udp       
+[21] Anywhere                   DENY IN     192.168.139.150/tcp       
+[22] 5353/udp                   DENY IN     Anywhere                   # Block mDNS
+[23] 5298                       DENY IN     Anywhere                  
+[24] 23/tcp                     DENY IN     Anywhere                   # Block Telnet
+[25] 22/tcp                     DENY IN     Anywhere                   # Block SSH
+[26] 137/udp                    DENY IN     Anywhere                   # Block NetBIOS-NS
+[27] 138/udp                    DENY IN     Anywhere                   # Block NetBIOS-DGM
+[28] 139/tcp                    DENY IN     Anywhere                   # Block NetBIOS
+[29] 445/tcp                    DENY IN     Anywhere                   # Block SMB
+[30] 5900:5910/tcp              DENY IN     Anywhere                   # Block VNC
+[31] 3690/tcp                   DENY IN     Anywhere                  
+[32] 5222/tcp                   DENY IN     Anywhere                  
+[33] 5269/tcp                   DENY IN     Anywhere                  
+[34] 3389/tcp                   DENY IN     Anywhere                   # Block RDP
+[35] 3306/tcp                   DENY IN     Anywhere                   # Block MySQL
+[36] 5432/tcp                   DENY IN     Anywhere                   # Block PostgreSQL
+[37] 6379/tcp                   DENY IN     Anywhere                   # Block Redis
+[38] 161/udp                    DENY IN     Anywhere                   # Block SNMP
+[39] 69/udp                     DENY IN     Anywhere                   # Block TFTP
+[40] 111/tcp                    DENY IN     Anywhere                   # Block RPC
+[41] 8080/tcp                   DENY IN     Anywhere                   # Block HTTP-Alt/Streaming
+[42] 8554/tcp                   DENY IN     Anywhere                   # Block RTSP
+[43] 1935/tcp                   DENY IN     Anywhere                   # Block RTMP
+[44] 4840/tcp                   DENY IN     Anywhere                   # Block Miracast
+[45] 7236/tcp                   DENY IN     Anywhere                   # Block Miracast-Ctrl
+[46] 513/tcp                    DENY IN     Anywhere                   # Block rlogin
+[47] 514/tcp                    DENY IN     Anywhere                   # Block rsh
+[48] 512/tcp                    DENY IN     Anywhere                   # Block rexec
+[49] 5800:5810/tcp              DENY IN     Anywhere                   # Block VNC-Web
+[50] 6001:6010/tcp              DENY IN     Anywhere                   # Block X11-Forward
+[51] 1900/udp                   DENY IN     Anywhere                   # Block SSDP/UPnP
+[52] 8009/tcp                   DENY IN     Anywhere                   # Block Chromecast
+[53] 8008/tcp                   DENY IN     Anywhere                   # Block Chromecast-Alt
+[54] 7250/tcp                   DENY IN     Anywhere                   # Block Miracast-Data
+[55] 2049/tcp                   DENY IN     Anywhere                   # Block NFS
+[56] 20/tcp                     DENY IN     Anywhere                   # Block FTP-Data
+[57] 21/tcp                     DENY IN     Anywhere                   # Block FTP-Control
+[58] 554/tcp                    DENY IN     Anywhere                   # Block RTSP-Alt
+[59] 5004/tcp                   DENY IN     Anywhere                   # Block RTP
+[60] 5005/tcp                   DENY IN     Anywhere                   # Block RTCP
+[61] 9090/tcp                   DENY IN     Anywhere                   # Block Cockpit
+[62] 10000/tcp                  DENY IN     Anywhere                   # Block Webmin
+[63] 5060/tcp                   DENY IN     Anywhere                   # Block SIP
+[64] 5061/tcp                   DENY IN     Anywhere                   # Block SIP-TLS
+[65] 1723/tcp                   DENY IN     Anywhere                   # Block PPTP
+[66] 1701/udp                   DENY IN     Anywhere                   # Block L2TP
+[67] 500/udp                    DENY IN     Anywhere                   # Block IKE/IPSec
+[68] 4500/udp                   DENY IN     Anywhere                   # Block IPSec-NAT
+[69] 67/udp                     DENY IN     Anywhere                  
+[70] 135/tcp                    DENY IN     Anywhere                  
+[71] 123,500,1080,1194,1494,2598,3074,3283/tcp DENY IN     Anywhere                  
+[72] 123,500,1080,1194,1494,2598,3074,3283/udp DENY IN     Anywhere                  
+[73] 5129,5223,5224,5228,5229,5230,5349,5500,5800,5801,5802,5803/tcp DENY IN     Anywhere                  
+[74] 5129,5222,5223,5224,5228,5229,5230,5349,5500,5800,5801,5802,5803/udp DENY IN     Anywhere                  
+[75] 5938,5939,6129,6568,6783,6881/tcp DENY IN     Anywhere                  
+[76] 5938,5939,6129,6568,6783,6881/udp DENY IN     Anywhere                  
+[77] 6882,6883,6884,6885,6886,6887,6888,6889,8081,8088,8443,8801,8802,8803/tcp DENY IN     Anywhere                  
+[78] 6882,6883,6884,6885,6886,6887,6888,6889,8081,8088,8443,8801,8802,8803/udp DENY IN     Anywhere                  
+[79] 8804,8805,9030,9080,9150,17500,21115,21116,27015,27036,50001,50002/tcp DENY IN     Anywhere                   # Remote app block
+[80] 8804,8805,9030,9080,9150,17500,21115,21116,27015,27036,50001,50002/udp DENY IN     Anywhere                   # Remote app block
+[81] 5000/tcp                   DENY IN     Anywhere                   # Block stream-5000
+[82] 80/tcp                     DENY IN     Anywhere                   # Block HTTP
+[83] 443/tcp                    DENY IN     Anywhere                   # Block HTTPS
+[84] 8443/tcp                   DENY IN     Anywhere                   # Block HTTPS-Alt
+[85] 22,53,80,123,443,500,1080,1194,1494,1701,1723,1935,2598,3074,3283/tcp DENY IN     Anywhere                   # Remote app block
+[86] 3390,3391,3478,3479,3480,3481,3659,4000,4172,4244,4443,4500,5000,5060,5061/tcp DENY IN     Anywhere                   # Remote app block
+[87] 5129,5222,5223,5224,5228,5229,5230,5349,5500,5800,5801,5802,5803,5900,5901/tcp DENY IN     Anywhere                   # Remote app block
+[88] 5902,5903,5904,5905,5906,5907,5908,5909,5938,5939,6010,6129,6568,6783,6881/tcp DENY IN     Anywhere                   # Remote app block
+[89] 6882,6883,6884,6885,6886,6887,6888,6889,8080,8081,8088,8443,8801,8802,8803/tcp DENY IN     Anywhere                   # Remote app block
+[90] 22,53,80,123,443,500,1080,1194,1494,1701,1723,1935,2598,3074,3283/udp DENY IN     Anywhere                   # Remote app block
+[91] 3390,3391,3478,3479,3480,3481,3659,4000,4172,4244,4443,4500,5000,5060,5061/udp DENY IN     Anywhere                   # Remote app block
+[92] 5129,5222,5223,5224,5228,5229,5230,5349,5500,5800,5801,5802,5803,5900,5901/udp DENY IN     Anywhere                   # Remote app block
+[93] 5902,5903,5904,5905,5906,5907,5908,5909,5938,5939,6010,6129,6568,6783,6881/udp DENY IN     Anywhere                   # Remote app block
+[94] 6882,6883,6884,6885,6886,6887,6888,6889,8080,8081,8088,8443,8801,8802,8803/udp DENY IN     Anywhere                   # Remote app block
+[95] 53 (v6)                    DENY IN     Anywhere (v6)             
+[96] Anywhere (v6)              DENY IN     2600:382::/64/tcp         
+[97] Anywhere (v6)              DENY IN     2600:382:628d:860d:d529:e733:bb52:5799/tcp
+[98] 5353/udp (v6)              DENY IN     Anywhere (v6)              # Block mDNS
+[99] 5298 (v6)                  DENY IN     Anywhere (v6)             
+[100] 23/tcp (v6)                DENY IN     Anywhere (v6)              # Block Telnet
+[101] 22/tcp (v6)                DENY IN     Anywhere (v6)              # Block SSH
+[102] 137/udp (v6)               DENY IN     Anywhere (v6)              # Block NetBIOS-NS
+[103] 138/udp (v6)               DENY IN     Anywhere (v6)              # Block NetBIOS-DGM
+[104] 139/tcp (v6)               DENY IN     Anywhere (v6)              # Block NetBIOS
+[105] 445/tcp (v6)               DENY IN     Anywhere (v6)              # Block SMB
+[106] 5900:5910/tcp (v6)         DENY IN     Anywhere (v6)              # Block VNC
+[107] 3690/tcp (v6)              DENY IN     Anywhere (v6)             
+[108] 5222/tcp (v6)              DENY IN     Anywhere (v6)             
+[109] 5269/tcp (v6)              DENY IN     Anywhere (v6)             
+[110] 3389/tcp (v6)              DENY IN     Anywhere (v6)              # Block RDP
+[111] 3306/tcp (v6)              DENY IN     Anywhere (v6)              # Block MySQL
+[112] 5432/tcp (v6)              DENY IN     Anywhere (v6)              # Block PostgreSQL
+[113] 6379/tcp (v6)              DENY IN     Anywhere (v6)              # Block Redis
+[114] 161/udp (v6)               DENY IN     Anywhere (v6)              # Block SNMP
+[115] 69/udp (v6)                DENY IN     Anywhere (v6)              # Block TFTP
+[116] 111/tcp (v6)               DENY IN     Anywhere (v6)              # Block RPC
+[117] 8080/tcp (v6)              DENY IN     Anywhere (v6)              # Block HTTP-Alt/Streaming
+[118] 8554/tcp (v6)              DENY IN     Anywhere (v6)              # Block RTSP
+[119] 1935/tcp (v6)              DENY IN     Anywhere (v6)              # Block RTMP
+[120] 4840/tcp (v6)              DENY IN     Anywhere (v6)              # Block Miracast
+[121] 7236/tcp (v6)              DENY IN     Anywhere (v6)              # Block Miracast-Ctrl
+[122] 513/tcp (v6)               DENY IN     Anywhere (v6)              # Block rlogin
+[123] 514/tcp (v6)               DENY IN     Anywhere (v6)              # Block rsh
+[124] 512/tcp (v6)               DENY IN     Anywhere (v6)              # Block rexec
+[125] 5800:5810/tcp (v6)         DENY IN     Anywhere (v6)              # Block VNC-Web
+[126] 6001:6010/tcp (v6)         DENY IN     Anywhere (v6)              # Block X11-Forward
+[127] 1900/udp (v6)              DENY IN     Anywhere (v6)              # Block SSDP/UPnP
+[128] 8009/tcp (v6)              DENY IN     Anywhere (v6)              # Block Chromecast
+[129] 8008/tcp (v6)              DENY IN     Anywhere (v6)              # Block Chromecast-Alt
+[130] 7250/tcp (v6)              DENY IN     Anywhere (v6)              # Block Miracast-Data
+[131] 2049/tcp (v6)              DENY IN     Anywhere (v6)              # Block NFS
+[132] 20/tcp (v6)                DENY IN     Anywhere (v6)              # Block FTP-Data
+[133] 21/tcp (v6)                DENY IN     Anywhere (v6)              # Block FTP-Control
+[134] 554/tcp (v6)               DENY IN     Anywhere (v6)              # Block RTSP-Alt
+[135] 5004/tcp (v6)              DENY IN     Anywhere (v6)              # Block RTP
+[136] 5005/tcp (v6)              DENY IN     Anywhere (v6)              # Block RTCP
+[137] 9090/tcp (v6)              DENY IN     Anywhere (v6)              # Block Cockpit
+[138] 10000/tcp (v6)             DENY IN     Anywhere (v6)              # Block Webmin
+[139] 5060/tcp (v6)              DENY IN     Anywhere (v6)              # Block SIP
+[140] 5061/tcp (v6)              DENY IN     Anywhere (v6)              # Block SIP-TLS
+[141] 1723/tcp (v6)              DENY IN     Anywhere (v6)              # Block PPTP
+[142] 1701/udp (v6)              DENY IN     Anywhere (v6)              # Block L2TP
+[143] 500/udp (v6)               DENY IN     Anywhere (v6)              # Block IKE/IPSec
+[144] 4500/udp (v6)              DENY IN     Anywhere (v6)              # Block IPSec-NAT
+[145] 67/udp (v6)                DENY IN     Anywhere (v6)             
+[146] 135/tcp (v6)               DENY IN     Anywhere (v6)             
+[147] 123,500,1080,1194,1494,2598,3074,3283/tcp (v6) DENY IN     Anywhere (v6)             
+[148] 123,500,1080,1194,1494,2598,3074,3283/udp (v6) DENY IN     Anywhere (v6)             
+[149] 5129,5223,5224,5228,5229,5230,5349,5500,5800,5801,5802,5803/tcp (v6) DENY IN     Anywhere (v6)             
+[150] 5129,5222,5223,5224,5228,5229,5230,5349,5500,5800,5801,5802,5803/udp (v6) DENY IN     Anywhere (v6)             
+[151] 5938,5939,6129,6568,6783,6881/tcp (v6) DENY IN     Anywhere (v6)             
+[152] 5938,5939,6129,6568,6783,6881/udp (v6) DENY IN     Anywhere (v6)             
+[153] 6882,6883,6884,6885,6886,6887,6888,6889,8081,8088,8443,8801,8802,8803/tcp (v6) DENY IN     Anywhere (v6)             
+[154] 6882,6883,6884,6885,6886,6887,6888,6889,8081,8088,8443,8801,8802,8803/udp (v6) DENY IN     Anywhere (v6)             
+[155] 8804,8805,9030,9080,9150,17500,21115,21116,27015,27036,50001,50002/tcp (v6) DENY IN     Anywhere (v6)              # Remote app block
+[156] 8804,8805,9030,9080,9150,17500,21115,21116,27015,27036,50001,50002/udp (v6) DENY IN     Anywhere (v6)              # Remote app block
+[157] 5000/tcp (v6)              DENY IN     Anywhere (v6)              # Block stream-5000
+[158] 80/tcp (v6)                DENY IN     Anywhere (v6)              # Block HTTP
+[159] 443/tcp (v6)               DENY IN     Anywhere (v6)              # Block HTTPS
+[160] 8443/tcp (v6)              DENY IN     Anywhere (v6)              # Block HTTPS-Alt
+[161] 22,53,80,123,443,500,1080,1194,1494,1701,1723,1935,2598,3074,3283/tcp (v6) DENY IN     Anywhere (v6)              # Remote app block
+[162] 3390,3391,3478,3479,3480,3481,3659,4000,4172,4244,4443,4500,5000,5060,5061/tcp (v6) DENY IN     Anywhere (v6)              # Remote app block
+[163] 5129,5222,5223,5224,5228,5229,5230,5349,5500,5800,5801,5802,5803,5900,5901/tcp (v6) DENY IN     Anywhere (v6)              # Remote app block
+[164] 5902,5903,5904,5905,5906,5907,5908,5909,5938,5939,6010,6129,6568,6783,6881/tcp (v6) DENY IN     Anywhere (v6)              # Remote app block
+[165] 6882,6883,6884,6885,6886,6887,6888,6889,8080,8081,8088,8443,8801,8802,8803/tcp (v6) DENY IN     Anywhere (v6)              # Remote app block
+[166] 22,53,80,123,443,500,1080,1194,1494,1701,1723,1935,2598,3074,3283/udp (v6) DENY IN     Anywhere (v6)              # Remote app block
+[167] 3390,3391,3478,3479,3480,3481,3659,4000,4172,4244,4443,4500,5000,5060,5061/udp (v6) DENY IN     Anywhere (v6)              # Remote app block
+[168] 5129,5222,5223,5224,5228,5229,5230,5349,5500,5800,5801,5802,5803,5900,5901/udp (v6) DENY IN     Anywhere (v6)              # Remote app block
+[169] 5902,5903,5904,5905,5906,5907,5908,5909,5938,5939,6010,6129,6568,6783,6881/udp (v6) DENY IN     Anywhere (v6)              # Remote app block
+[170] 6882,6883,6884,6885,6886,6887,6888,6889,8080,8081,8088,8443,8801,8802,8803/udp (v6) DENY IN     Anywhere (v6)              # Remote app block
+
+SECURITY HARDENING APPLIED
+--------------------------------------------------------------------------------
+✓ enable firewalld service
+✓ start firewalld service
+✓ set default zone to public
+✓ remove service telnet
+✓ remove service ftp
+✓ remove service tftp
+✓ remove service rsh
+✓ remove service rlogin
+✓ remove service finger
+✓ remove service netbios-ns
+✓ remove service netbios-dgm
+✓ remove service netbios-ssn
+✓ remove service microsoft-ds
+✓ Panic mode available: firewall-cmd --panic-on
+✓ reload firewalld configuration
+✓ set default deny incoming
+✓ set default allow outgoing
+✓ set default deny routed
+✓ enable UFW logging
+✓ deny 23/tcp (Telnet)
+✓ deny 21/tcp (FTP)
+✓ deny 69/udp (TFTP)
+✓ deny 135/tcp (MS RPC)
+✓ deny 137/udp (NetBIOS NS)
+✓ deny 138/udp (NetBIOS DGM)
+✓ deny 139/tcp (NetBIOS SSN)
+✓ deny 445/tcp (SMB)
+✓ apply SSH rate limiting
+✓ enable UFW firewall
