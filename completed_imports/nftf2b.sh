@@ -3,11 +3,11 @@
 # Prepare nftables+fail2ban config, restart services, collect .deb files for offline install and package everything.
 set -euo pipefail
 
-SRC_JAILS="/home/burnone/flatdixiemkI/archive/completed_imports/fail2ban_100_jails.local"
+SRC_JAILS="/home/regular/git/security_measures/completed_imports/fail2ban_100_jails.local"
 DST_JAILS="/etc/fail2ban/jails.local"
 NFT_ACTION="/etc/fail2ban/action.d/nftables.conf"
 TIMESTAMP=$(date -u +"%Y%m%dT%H%M%SZ")
-OUTDIR="/home/burnone/flatdixiemkI/offline_package_${TIMESTAMP}"
+OUTDIR="/home/regular/git/security_measures/completed_imports/offline_package_${TIMESTAMP}"
 DEB_DIR="${OUTDIR}/debs"
 PKGS="fail2ban nftables"
 

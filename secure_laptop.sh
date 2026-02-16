@@ -49,6 +49,7 @@ done
 RUN_ID=$(date +%Y%m%d-%H%M%S)
 LOG_DIR=/var/log/secure_laptop
 mkdir -p "$LOG_DIR"
+mkdir -p /var/backups
 LOG_FILE="$LOG_DIR/secure_laptop_${RUN_ID}.log"
 MANIFEST="$LOG_DIR/backup_manifest_${RUN_ID}.txt"
 CREATED_FILES="$LOG_DIR/created_files_${RUN_ID}.txt"
@@ -59,22 +60,44 @@ touch "$MANIFEST" "$CREATED_FILES" "$MODIFIED_SERVICES"
 SCRIPT_PATH=$(readlink -f "${BASH_SOURCE[0]:-$0}")
 
 run_cmd() {
-  if [ "$DRY_RUN" -eq 1 ]; then
-    print "DRY-RUN: $*"
-  else
-    print "+ $*"
-    eval "$@"
+  # Accepts the command and arguments; preserves spaces/redirects.
+  local cmd
+  cmd="$*"
+  if [ "${DRY_RUN:-0}" -eq 1 ]; then
+    print "DRY-RUN: $cmd"
+    return 0
   fi
+
+  print "+ $cmd"
+
+  # Temporarily disable errexit so callers can use 'run_cmd ... || true'
+  set +e
+  bash -c "$cmd"
+  local rc=$?
+  # Restore errexit
+  set -e
+
+  if [ $rc -ne 0 ]; then
+    err "Command failed (rc=$rc): $cmd"
+  fi
+  return $rc
 }
 
 backup_file() {
   local f="$1"
   if [ -e "$f" ]; then
-    local now
+    local now dest rc
     now=$(date +%Y%m%d-%H%M%S)
-    local dest="${f}.bak-$now"
+    dest="${f}.bak-$now"
     print "Backing up $f -> $dest"
     run_cmd cp -a "$f" "$dest"
+    rc=$?
+
+    # Record the original and backup pair in the manifest for rollback
+    if [ "${DRY_RUN:-0}" -eq 0 ] && [ "$rc" -eq 0 ]; then
+      touch "${MANIFEST:-/dev/null}" >/dev/null 2>&1 || true
+      echo "${f}|${dest}" >> "${MANIFEST:-/dev/null}"
+    fi
   fi
 }
 
@@ -184,12 +207,12 @@ EOF
       done
     fi
     for n in "${ipv4_nets[@]}"; do
-      echo "iptables -I INPUT 1 -i ! lo -s $n -j DROP" >> /tmp/secure_laptop_iptables_add
-      echo "iptables -D INPUT -i ! lo -s $n -j DROP" >> /tmp/secure_laptop_iptables_rm
+      echo "iptables -I INPUT 1 ! -i lo -s $n -j DROP" >> /tmp/secure_laptop_iptables_add
+      echo "iptables -D INPUT ! -i lo -s $n -j DROP" >> /tmp/secure_laptop_iptables_rm
     done
     for n in "${ipv6_nets[@]}"; do
-      echo "ip6tables -I INPUT 1 -i ! lo -s $n -j DROP" >> /tmp/secure_laptop_iptables_add
-      echo "ip6tables -D INPUT -i ! lo -s $n -j DROP" >> /tmp/secure_laptop_iptables_rm
+      echo "ip6tables -I INPUT 1 ! -i lo -s $n -j DROP" >> /tmp/secure_laptop_iptables_add
+      echo "ip6tables -D INPUT ! -i lo -s $n -j DROP" >> /tmp/secure_laptop_iptables_rm
     done
     run_cmd mv /tmp/secure_laptop_iptables_add "$add_script"
     run_cmd mv /tmp/secure_laptop_iptables_rm "$rm_script"
@@ -237,8 +260,8 @@ on_exit() {
   print "\n--- Run summary ---"
   print "Log file: $LOG_FILE"
 
-  # Quick scan for obvious errors in our log
-  if grep -Ei "error|failed|traceback|segfault" "$LOG_FILE" >/dev/null 2>&1; then
+  # Only treat explicit script errors as failure
+  if grep -E "^ERROR: |Command failed" "$LOG_FILE" >/dev/null 2>&1; then
     print "Failed completion - review logs"
     # add some journal hints
     if command -v journalctl >/dev/null 2>&1; then
@@ -246,10 +269,15 @@ on_exit() {
       journalctl -p err -n 200 --no-pager || true
     fi
     exit 1
-  else
-    print "Completed successfully"
-    exit 0
   fi
+
+  if [ "$EXIT_STATUS" -ne 0 ]; then
+    print "Script exited with status $EXIT_STATUS"
+    exit "$EXIT_STATUS"
+  fi
+
+  print "Completed successfully"
+  exit 0
 }
 trap on_exit EXIT
 
@@ -315,32 +343,60 @@ if [ "$NO_UFW" -eq 0 ]; then
     run_cmd ufw insert 1 deny from "$r" to any
   done
 
-  # Protect loopback against spoofing using iptables/nft
+  # Protect loopback against spoofing using nft/iptables with rollback scripts
   protect_loopback() {
-    if command -v nft >/dev/null 2>&1; then
-      # use nft to drop spoofed loopback addresses
-      run_cmd nft add rule inet filter input iifname != lo ip saddr 127.0.0.0/8 drop || true
-      run_cmd nft add rule inet filter input iifname != lo ip6 saddr ::1 drop || true
-      # Drop new connections sourced from RFC1918 on non-loopback interfaces
-      run_cmd nft add rule inet filter input iifname != lo ip saddr {10.0.0.0/8,172.16.0.0/12,192.168.0.0/16} ct state new drop || true
-      # Drop IPv6 ULA new connections
-      run_cmd nft add rule inet filter input iifname != lo ip6 saddr fc00::/7 ct state new drop || true
-    else
-      if command -v iptables >/dev/null 2>&1; then
-        run_cmd iptables -C INPUT -i lo -s 127.0.0.0/8 -j ACCEPT >/dev/null 2>&1 || true
-        # Drop packets claiming loopback but arriving on non-loopback interfaces
-        run_cmd iptables -C INPUT -i ! lo -s 127.0.0.0/8 -j DROP >/dev/null 2>&1 || run_cmd iptables -I INPUT 1 -i ! lo -s 127.0.0.0/8 -j DROP || true
-      fi
-        # Drop RFC1918 networks using iptables as a fallback
-        for r in 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16; do
-          run_cmd iptables -C INPUT -i ! lo -s "$r" -j DROP >/dev/null 2>&1 || run_cmd iptables -I INPUT 1 -i ! lo -s "$r" -j DROP || true
-        done
-        if command -v ip6tables >/dev/null 2>&1; then
-        run_cmd ip6tables -C INPUT -i ! lo -s ::1 -j DROP >/dev/null 2>&1 || run_cmd ip6tables -I INPUT 1 -i ! lo -s ::1 -j DROP || true
-          # Drop ULA IPv6 sources
-          run_cmd ip6tables -C INPUT -i ! lo -s fc00::/7 -j DROP >/dev/null 2>&1 || run_cmd ip6tables -I INPUT 1 -i ! lo -s fc00::/7 -j DROP || true
-      fi
-    fi
+    local add_script=/usr/local/sbin/secure_laptop_loopback_add_${RUN_ID}.sh
+    local rm_script=/usr/local/sbin/secure_laptop_loopback_rm_${RUN_ID}.sh
+
+    cat > /tmp/secure_laptop_loopback_add <<'EOF'
+#!/usr/bin/env bash
+set -e
+if command -v nft >/dev/null 2>&1; then
+  if nft list table inet secure_laptop >/dev/null 2>&1; then
+    nft flush table inet secure_laptop
+  else
+    nft add table inet secure_laptop
+    nft add chain inet secure_laptop input '{ type filter hook input priority -100; policy accept; }'
+  fi
+  nft add rule inet secure_laptop input iifname lo accept
+  nft add rule inet secure_laptop input iifname != lo ip saddr 127.0.0.0/8 drop
+  nft add rule inet secure_laptop input iifname != lo ip6 saddr ::1 drop
+else
+  if command -v iptables >/dev/null 2>&1; then
+    iptables -C INPUT -i lo -j ACCEPT >/dev/null 2>&1 || iptables -I INPUT 1 -i lo -j ACCEPT
+    iptables -C INPUT ! -i lo -s 127.0.0.0/8 -j DROP >/dev/null 2>&1 || iptables -I INPUT 2 ! -i lo -s 127.0.0.0/8 -j DROP
+  fi
+  if command -v ip6tables >/dev/null 2>&1; then
+    ip6tables -C INPUT -i lo -j ACCEPT >/dev/null 2>&1 || ip6tables -I INPUT 1 -i lo -j ACCEPT
+    ip6tables -C INPUT ! -i lo -s ::1 -j DROP >/dev/null 2>&1 || ip6tables -I INPUT 2 ! -i lo -s ::1 -j DROP
+  fi
+fi
+EOF
+
+    cat > /tmp/secure_laptop_loopback_rm <<'EOF'
+#!/usr/bin/env bash
+set -e
+if command -v nft >/dev/null 2>&1; then
+  if nft list table inet secure_laptop >/dev/null 2>&1; then
+    nft delete table inet secure_laptop
+  fi
+fi
+if command -v iptables >/dev/null 2>&1; then
+  iptables -D INPUT ! -i lo -s 127.0.0.0/8 -j DROP >/dev/null 2>&1 || true
+  iptables -D INPUT -i lo -j ACCEPT >/dev/null 2>&1 || true
+fi
+if command -v ip6tables >/dev/null 2>&1; then
+  ip6tables -D INPUT ! -i lo -s ::1 -j DROP >/dev/null 2>&1 || true
+  ip6tables -D INPUT -i lo -j ACCEPT >/dev/null 2>&1 || true
+fi
+EOF
+
+    run_cmd mv /tmp/secure_laptop_loopback_add "$add_script"
+    run_cmd mv /tmp/secure_laptop_loopback_rm "$rm_script"
+    run_cmd chmod 0755 "$add_script" "$rm_script"
+    echo "$add_script" >> "${CREATED_FILES:-/dev/null}"
+    echo "$rm_script" >> "${CREATED_FILES:-/dev/null}"
+    run_cmd "$add_script"
   }
   protect_loopback
 
@@ -366,7 +422,24 @@ else
   F2B_ACTION=ufw
 fi
 
+[ -n "${F2B_ACTION:-}" ] || F2B_ACTION=ufw
 print "Selected fail2ban action: $F2B_ACTION"
+
+# Choose recidive logpath: prefer fail2ban log, else auth/secure, else create fail2ban log
+RECIDIVE_LOGPATH="/var/log/fail2ban.log"
+if [ -e /var/log/fail2ban.log ]; then
+  RECIDIVE_LOGPATH="/var/log/fail2ban.log"
+elif [ -e /var/log/auth.log ]; then
+  RECIDIVE_LOGPATH="/var/log/auth.log"
+elif [ -e /var/log/secure ]; then
+  RECIDIVE_LOGPATH="/var/log/secure"
+else
+  RECIDIVE_LOGPATH="/var/log/fail2ban.log"
+  # create the file (run_cmd respects dry-run)
+  run_cmd touch "$RECIDIVE_LOGPATH"
+  run_cmd chown root:adm "$RECIDIVE_LOGPATH" || true
+  run_cmd chmod 0640 "$RECIDIVE_LOGPATH" || true
+fi
 
 cat > /tmp/secure_laptop_f2b.conf <<EOF
 [sshd]
@@ -381,7 +454,7 @@ action = $F2B_ACTION
 
 [recidive]
 enabled = true
-logpath = /var/log/fail2ban.log
+logpath = $RECIDIVE_LOGPATH
 action = $F2B_ACTION
 bantime = 86400
 findtime = 86400
@@ -391,6 +464,118 @@ run_cmd mkdir -p "$F2B_JAIL_DIR"
 run_cmd mv /tmp/secure_laptop_f2b.conf "$F2B_CONF_FILE"
 echo "$F2B_CONF_FILE" >> "${CREATED_FILES:-/dev/null}"
 
+# Extra aggressive jails for remote access/screencast/audio/video/thumbnailer/sslh
+F2B_EXTRA_FILTER=/etc/fail2ban/filter.d/secure-laptop-auth.conf
+F2B_EXTRA_JAIL=/etc/fail2ban/jail.d/secure_laptop-extra.local
+
+cat > /tmp/secure_laptop_auth_filter.conf <<'EOF'
+[Definition]
+failregex = (?i)^.*(authentication|login|auth).*?(failed|failure|invalid|denied).*?(from|rhost=|host=|ip=)\s*<HOST>.*$
+            (?i)^.*Failed .*?(from|rhost=|host=|ip=)\s*<HOST>.*$
+ignoreregex =
+EOF
+
+run_cmd mv /tmp/secure_laptop_auth_filter.conf "$F2B_EXTRA_FILTER"
+echo "$F2B_EXTRA_FILTER" >> "${CREATED_FILES:-/dev/null}"
+
+cat > /tmp/secure_laptop_extra_jails.conf <<EOF
+[DEFAULT]
+bantime = -1
+findtime = 1m
+maxretry = 1
+
+# SSH: instant/eternal
+[sshd]
+enabled = true
+port = $SSHD_PORT
+action = $F2B_ACTION
+
+# SSLH
+[secure-laptop-sslh]
+enabled = true
+filter = secure-laptop-auth
+backend = systemd
+journalmatch = _SYSTEMD_UNIT=sslh.service
+action = $F2B_ACTION
+
+# Remote desktop (GNOME)
+[secure-laptop-remote-desktop]
+enabled = true
+filter = secure-laptop-auth
+backend = systemd
+journalmatch = _SYSTEMD_UNIT=gnome-remote-desktop.service
+action = $F2B_ACTION
+
+[secure-laptop-remote-desktop-shell]
+enabled = true
+filter = secure-laptop-auth
+backend = systemd
+journalmatch = _SYSTEMD_UNIT=gnome-shell-remote-desktop.service
+action = $F2B_ACTION
+
+# Screencasting / portals
+[secure-laptop-screencast-portal]
+enabled = true
+filter = secure-laptop-auth
+backend = systemd
+journalmatch = _SYSTEMD_UNIT=xdg-desktop-portal.service
+action = $F2B_ACTION
+
+[secure-laptop-screencast-portal-gnome]
+enabled = true
+filter = secure-laptop-auth
+backend = systemd
+journalmatch = _SYSTEMD_UNIT=xdg-desktop-portal-gnome.service
+action = $F2B_ACTION
+
+# Audio/video stacks
+[secure-laptop-audio-pulseaudio]
+enabled = true
+filter = secure-laptop-auth
+backend = systemd
+journalmatch = _SYSTEMD_UNIT=pulseaudio.service
+action = $F2B_ACTION
+
+[secure-laptop-audio-pipewire]
+enabled = true
+filter = secure-laptop-auth
+backend = systemd
+journalmatch = _SYSTEMD_UNIT=pipewire.service
+action = $F2B_ACTION
+
+[secure-laptop-audio-wireplumber]
+enabled = true
+filter = secure-laptop-auth
+backend = systemd
+journalmatch = _SYSTEMD_UNIT=wireplumber.service
+action = $F2B_ACTION
+
+# Thumbnailers
+[secure-laptop-thumbnailer-tumblerd]
+enabled = true
+filter = secure-laptop-auth
+backend = systemd
+journalmatch = _SYSTEMD_UNIT=tumblerd.service
+action = $F2B_ACTION
+
+[secure-laptop-thumbnailer-tracker]
+enabled = true
+filter = secure-laptop-auth
+backend = systemd
+journalmatch = _SYSTEMD_UNIT=tracker-miner-fs.service
+action = $F2B_ACTION
+
+[secure-laptop-thumbnailer-gnome]
+enabled = true
+filter = secure-laptop-auth
+backend = systemd
+journalmatch = _SYSTEMD_UNIT=gnome-desktop-thumbnailer.service
+action = $F2B_ACTION
+EOF
+
+run_cmd mv /tmp/secure_laptop_extra_jails.conf "$F2B_EXTRA_JAIL"
+echo "$F2B_EXTRA_JAIL" >> "${CREATED_FILES:-/dev/null}"
+
 # Restart fail2ban
 if command -v systemctl >/dev/null 2>&1; then
   run_cmd systemctl restart fail2ban || run_cmd service fail2ban restart || true
@@ -399,7 +584,9 @@ else
 fi
 
 print "Fail2Ban status (summary):"
-run_cmd fail2ban-client status || true
+if ! fail2ban-client status; then
+  print "Fail2Ban status check failed (non-fatal)"
+fi
 
 # Optional nftables configuration
 if [ "$ENABLE_NFT" -eq 1 ]; then
@@ -604,6 +791,10 @@ install_generator_timer
 # Disable services, timers, streaming and recording services
 disable_service_and_timer() {
   local svc="$1"
+  if ! command -v systemctl >/dev/null 2>&1; then
+    print "systemctl not found; skipping disable/mask for $svc"
+    return 0
+  fi
   if systemctl list-unit-files --type=service | grep -q "^${svc}.service"; then
     print "Disabling service: $svc"
     run_cmd systemctl disable --now "${svc}.service" || run_cmd systemctl stop "${svc}.service" || true
@@ -613,6 +804,7 @@ disable_service_and_timer() {
     run_cmd systemctl disable --now "${svc}.timer" || true
   fi
   # Mask to prevent activation
+  echo "$svc" >> "${MODIFIED_SERVICES:-/dev/null}"
   run_cmd systemctl mask "${svc}.service" || true
 }
 
@@ -726,9 +918,7 @@ disable_common_servers
 disable_streaming_and_recording
 tighten_nftables
 
-install_logrotate_config
-check_components
-
+# Define helper functions before they're invoked below
 install_logrotate_config() {
   local lr=/etc/logrotate.d/secure_laptop
   backup_file "$lr"
@@ -780,7 +970,11 @@ check_components() {
       print "ERROR: Fail2Ban not running"; errs=$((errs+1))
     fi
   else
-    print "ERROR: fail2ban not installed"; errs=$((errs+1))
+    if [ "$DRY_RUN" -eq 1 ]; then
+      print "Skip: fail2ban not installed (dry-run)"
+    else
+      print "ERROR: fail2ban not installed"; errs=$((errs+1))
+    fi
   fi
 
   # nftables check
@@ -792,7 +986,11 @@ check_components() {
         print "ERROR: nftables ruleset missing"; errs=$((errs+1))
       fi
     else
-      print "ERROR: nft not installed"; errs=$((errs+1))
+      if [ "$DRY_RUN" -eq 1 ]; then
+        print "Skip: nft not installed (dry-run)"
+      else
+        print "ERROR: nft not installed"; errs=$((errs+1))
+      fi
     fi
   else
     print "nftables: not enabled"
@@ -804,6 +1002,9 @@ check_components() {
     print "Component check: all OK"
   fi
 }
+
+install_logrotate_config
+check_components
 
 rollback_changes() {
   print "Starting rollback..."
@@ -836,12 +1037,18 @@ rollback_changes() {
     done < "$modfile"
   fi
 
-  # remove created files
+  # run removal scripts and then remove created files
   local created
   created=$(ls -1t "$LOG_DIR"/created_files_*.txt 2>/dev/null | head -n1 || true)
   if [ -n "$created" ]; then
     while read -r f; do
       if [ -n "$f" ] && [ -e "$f" ]; then
+        case "$f" in
+          *_rm_*.sh)
+            print "Executing rollback script: $f"
+            run_cmd "$f" || true
+            ;;
+        esac
         print "Removing created file: $f"
         run_cmd rm -f "$f" || true
       fi

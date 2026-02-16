@@ -111,9 +111,9 @@ HARDENING_TASKS: Dict[str, HardeningTask] = {
     ),
     "restrict_loopback": HardeningTask(
         key="restrict_loopback",
-        name="Restrict Loopback",
-        description="Apply loopback interface restrictions.",
-        runner=_runner_call(loopback_restriction.apply_loopback_block),
+        name="Harden Loopback",
+        description="Apply loopback anti-spoofing rules.",
+        runner=_runner_call(loopback_restriction.apply_loopback_hardening),
     ),
     "cleanup_accounts": HardeningTask(
         key="cleanup_accounts",

@@ -527,8 +527,8 @@ class FlatlineDixieMainWindow(QMainWindow):
             ),
             (
                 "Loopback Protection",
-                "Prevent localhost abuse by dropping unauthorized loopback traffic.",
-                [("harden_loopback", "Block Loopback Traffic", "Drop 127.0.0.0/24 and lo interface flows.", partial(block_loopback_task, dry_run=False))],
+                "Prevent localhost abuse by blocking spoofed loopback traffic.",
+                [("harden_loopback", "Harden Loopback", "Allow lo traffic and drop spoofed loopback packets.", partial(block_loopback_task, dry_run=False))],
                 None,
             ),
             (
@@ -1115,7 +1115,7 @@ class FlatlineDixieMainWindow(QMainWindow):
             ("Anti-Spying", anti_spying_check.get_anti_spying_summary),
             ("inetd/xinetd", inetd_check.get_inetd_summary),
             ("Remote Applications", block_remote_module.get_remote_app_summary),
-            ("Loopback Restriction", loopback_restriction.get_loopback_summary),
+            ("Loopback Hardening", loopback_restriction.get_loopback_summary),
             ("Account Security", account_security.get_account_security_summary),
             ("Rootkit Remediation", rootkit_remediation.get_rootkit_remediation_summary),
             ("Firewall", firewall_security.get_firewall_summary),

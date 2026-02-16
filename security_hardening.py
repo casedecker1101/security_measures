@@ -866,14 +866,14 @@ Alias=sshd.service
         }
 
     def block_loopback_interfaces(self) -> dict:
-        """Block loopback (127.0.0.0/24) connectivity to eliminate local bypass paths."""
-        print("[*] Blocking loopback interface traffic...")
-        from .loopback_restriction import apply_loopback_block
+        """Harden loopback to prevent spoofed loopback traffic."""
+        print("[*] Hardening loopback anti-spoofing rules...")
+        from .loopback_restriction import apply_loopback_hardening
 
-        result = apply_loopback_block(dry_run=self.dry_run)
+        result = apply_loopback_hardening(dry_run=self.dry_run)
         return {
             'success': result.get('success', False),
-            'message': result.get('message', 'Loopback restriction applied'),
+            'message': result.get('message', 'Loopback hardening applied'),
             'details': {
                 'commands': result.get('commands', []),
                 'errors': result.get('errors', []),

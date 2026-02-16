@@ -159,14 +159,27 @@ Other: help, exit"""
         return message
 
     if user_input.lower() == "harden_loopback":
-        return "Loopback restriction will drop traffic on the lo interface and 127.0.0.0/24 range. Type 'confirm_harden_loopback' to proceed or 'preview_harden_loopback' for a dry-run command list."
+        return "Loopback hardening will allow lo traffic while dropping spoofed loopback packets. Type 'confirm_harden_loopback' to proceed or 'preview_harden_loopback' for a dry-run command list."
     if user_input.lower() == "preview_harden_loopback":
         from flatline_dixie.checks import loopback_restriction
-        return loopback_restriction.preview_loopback_block()
+        return loopback_restriction.preview_loopback_hardening()
     if user_input.lower() == "confirm_harden_loopback":
         from flatline_dixie.checks import loopback_restriction
-        result = loopback_restriction.apply_loopback_block(dry_run=False)
-        message = _safe_get_str(result, 'message', 'Loopback restriction applied')
+        result = loopback_restriction.apply_loopback_hardening(dry_run=False)
+        message = _safe_get_str(result, 'message', 'Loopback hardening applied')
+        errors = _safe_get_list(result, 'errors')
+        if errors:
+            message = message + "\n" + "\n".join(f"- {err}" for err in errors)
+        return message
+    if user_input.lower() == "restore_loopback":
+        return "Loopback restore will remove the anti-spoofing rules. Type 'confirm_restore_loopback' to proceed or 'preview_restore_loopback' for a dry-run command list."
+    if user_input.lower() == "preview_restore_loopback":
+        from flatline_dixie.checks import loopback_restriction
+        return loopback_restriction.preview_loopback_restore()
+    if user_input.lower() == "confirm_restore_loopback":
+        from flatline_dixie.checks import loopback_restriction
+        result = loopback_restriction.restore_loopback_hardening(dry_run=False)
+        message = _safe_get_str(result, 'message', 'Loopback hardening restored')
         errors = _safe_get_list(result, 'errors')
         if errors:
             message = message + "\n" + "\n".join(f"- {err}" for err in errors)

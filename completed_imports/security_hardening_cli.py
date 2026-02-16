@@ -173,9 +173,9 @@ def main():
         return 0 if result.get('success') else 1
 
     elif args.action == 'harden_loopback':
-        result = loopback_restriction.apply_loopback_block(dry_run=args.dry_run)
+        result = loopback_restriction.apply_loopback_hardening(dry_run=args.dry_run)
         action_type = "would be applied" if args.dry_run else "applied"
-        print(f"Loopback restriction {action_type}: {'SUCCESS' if result.get('success') else 'FAILED'}")
+        print(f"Loopback hardening {action_type}: {'SUCCESS' if result.get('success') else 'FAILED'}")
         print(result.get('message', ''))
         errors = result.get('errors', [])
         if errors and isinstance(errors, list):
