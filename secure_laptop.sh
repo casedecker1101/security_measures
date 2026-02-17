@@ -8,21 +8,25 @@ DRY_RUN=0
 NONINTERACTIVE=0
 ENABLE_NFT=0
 NO_UFW=0
+NO_FAIL2BAN=0
 ROLLBACK=0
 WHITELIST=""
+USER_SET_ENABLE_NFT=0
+USER_SET_NO_UFW=0
 
 print() { printf '%s\n' "$*"; }
 err() { printf 'ERROR: %s\n' "$*" >&2; }
 
 usage() {
   cat <<EOF
-Usage: sudo $0 [--dry-run] [--non-interactive] [--enable-nft] [--no-ufw]
+Usage: sudo $0 [--dry-run] [--non-interactive] [--enable-nft] [--no-ufw] [--no-fail2ban]
 
 Options:
   --dry-run         Print actions without making changes
   --non-interactive Do not prompt; assume yes for confirmations
   --enable-nft      Configure basic nftables rules (recommended only if you disable ufw with --no-ufw)
   --no-ufw          Do not configure UFW; useful when you want nftables only
+  --no-fail2ban     Skip Fail2Ban setup (useful when focusing on nftables only)
 
 Notes:
   - This script is written to be idempotent and to back up modified configs.
@@ -35,8 +39,9 @@ for arg in "$@"; do
   case "$arg" in
     --dry-run) DRY_RUN=1 ;; 
     --non-interactive) NONINTERACTIVE=1 ;; 
-    --enable-nft) ENABLE_NFT=1 ;; 
-  --no-ufw) NO_UFW=1 ;; 
+    --enable-nft) ENABLE_NFT=1; USER_SET_ENABLE_NFT=1 ;; 
+  --no-ufw) NO_UFW=1; USER_SET_NO_UFW=1 ;; 
+  --no-fail2ban) NO_FAIL2BAN=1 ;;
   --rollback) ROLLBACK=1 ;; 
   --whitelist=*) WHITELIST="${arg#*=}" ;; 
     -h|--help) usage; exit 0 ;; 
@@ -113,6 +118,56 @@ detect_pkg_mgr() {
   fi
 }
 
+detect_distro() {
+  if [ -r /etc/os-release ]; then
+    . /etc/os-release
+    echo "${ID:-unknown}" "${ID_LIKE:-}"
+  else
+    echo "unknown"
+  fi
+}
+
+# Default to nftables-only on Arch unless user explicitly chose otherwise.
+if [ "$USER_SET_ENABLE_NFT" -eq 0 ] && [ "$USER_SET_NO_UFW" -eq 0 ]; then
+  distro_info=$(detect_distro)
+  if echo "$distro_info" | grep -qi "\barch\b"; then
+    ENABLE_NFT=1
+    NO_UFW=1
+    print "Detected Arch; defaulting to nftables-only mode"
+  fi
+fi
+
+systemd_available() {
+  if ! command -v systemctl >/dev/null 2>&1; then
+    return 1
+  fi
+  # Most reliable indicator for systemd being PID 1.
+  if [ -d /run/systemd/system ]; then
+    return 0
+  fi
+  # Fall back to systemctl's own check if available.
+  systemctl is-system-running --quiet >/dev/null 2>&1
+}
+
+disable_firewalld() {
+  if ! systemd_available; then
+    return 0
+  fi
+  if systemctl is-active --quiet firewalld 2>/dev/null; then
+    print "Disabling firewalld to avoid conflicts with nftables"
+    run_cmd systemctl disable --now firewalld || true
+  fi
+}
+
+ensure_nft_table() {
+  local table="$1"
+  if nft list table inet "$table" >/dev/null 2>&1; then
+    return 0
+  fi
+  run_cmd nft add table inet "$table" || return 1
+  run_cmd nft add chain inet "$table" input '{ type filter hook input priority -100; policy accept; }'
+}
+
 ensure_package() {
   local pkg="$1"
   local mgr
@@ -151,6 +206,7 @@ add_deny_local_subnets() {
   print "Adding deny rules for local subnets (RFC1918/ULA)"
   local ipv4_nets=("10.0.0.0/8" "172.16.0.0/12" "192.168.0.0/16")
   local ipv6_nets=("fc00::/7")
+  local nft_table=""
 
   # UFW: add explicit allow for whitelist then deny rules (backed up earlier)
   if [ "$NO_UFW" -eq 0 ]; then
@@ -170,21 +226,27 @@ add_deny_local_subnets() {
     done
   fi
 
-  # nftables: if available, add runtime rules and ensure config includes them when writing
-  if command -v nft >/dev/null 2>&1; then
+  # nftables: only add runtime rules when nft is explicitly enabled
+  if [ "$ENABLE_NFT" -eq 1 ] && command -v nft >/dev/null 2>&1; then
+    if nft list table inet filter >/dev/null 2>&1; then
+      nft_table="filter"
+    else
+      nft_table="secure_laptop"
+      ensure_nft_table "$nft_table" || return 0
+    fi
     # nft whitelist
     if [ -n "$WHITELIST" ]; then
       IFS=',' read -ra WCLS <<< "$WHITELIST"
       for w in "${WCLS[@]}"; do
-        run_cmd nft add rule inet filter input iifname != lo ip saddr "$w" accept || true
+        run_cmd nft add rule inet "$nft_table" input iifname != lo ip saddr "$w" accept || true
       done
       print "Applied nft whitelist: $WHITELIST"
     fi
     for n in "${ipv4_nets[@]}"; do
-      run_cmd nft add rule inet filter input iifname != lo ip saddr "$n" drop || true
+      run_cmd nft add rule inet "$nft_table" input iifname != lo ip saddr "$n" drop || true
     done
     for n in "${ipv6_nets[@]}"; do
-      run_cmd nft add rule inet filter input iifname != lo ip6 saddr "$n" drop || true
+      run_cmd nft add rule inet "$nft_table" input iifname != lo ip6 saddr "$n" drop || true
     done
   else
     # Fallback to iptables/ip6tables and create removal script for rollback
@@ -406,42 +468,48 @@ EOF
   add_deny_local_subnets
 fi
 
-# Install and configure Fail2Ban
-print "Configuring Fail2Ban"
-ensure_package fail2ban || true
-
-F2B_JAIL_DIR=/etc/fail2ban/jail.d
-F2B_CONF_FILE=${F2B_JAIL_DIR}/secure_laptop.conf
-
-backup_file "$F2B_CONF_FILE"
-
-# Choose action based on availability of nft
-if command -v nft >/dev/null 2>&1; then
-  F2B_ACTION=nftables
-else
-  F2B_ACTION=ufw
+if [ "$NO_UFW" -eq 1 ] && command -v ufw >/dev/null 2>&1; then
+  print "UFW disabled (nftables-only mode)"
+  run_cmd ufw --force disable || true
 fi
 
-[ -n "${F2B_ACTION:-}" ] || F2B_ACTION=ufw
-print "Selected fail2ban action: $F2B_ACTION"
+# Install and configure Fail2Ban (optional)
+if [ "$NO_FAIL2BAN" -eq 0 ]; then
+  print "Configuring Fail2Ban"
+  ensure_package fail2ban || true
 
-# Choose recidive logpath: prefer fail2ban log, else auth/secure, else create fail2ban log
-RECIDIVE_LOGPATH="/var/log/fail2ban.log"
-if [ -e /var/log/fail2ban.log ]; then
-  RECIDIVE_LOGPATH="/var/log/fail2ban.log"
-elif [ -e /var/log/auth.log ]; then
-  RECIDIVE_LOGPATH="/var/log/auth.log"
-elif [ -e /var/log/secure ]; then
-  RECIDIVE_LOGPATH="/var/log/secure"
-else
-  RECIDIVE_LOGPATH="/var/log/fail2ban.log"
-  # create the file (run_cmd respects dry-run)
-  run_cmd touch "$RECIDIVE_LOGPATH"
-  run_cmd chown root:adm "$RECIDIVE_LOGPATH" || true
-  run_cmd chmod 0640 "$RECIDIVE_LOGPATH" || true
-fi
+  F2B_JAIL_DIR=/etc/fail2ban/jail.d
+  F2B_CONF_FILE=${F2B_JAIL_DIR}/secure_laptop.conf
 
-cat > /tmp/secure_laptop_f2b.conf <<EOF
+  backup_file "$F2B_CONF_FILE"
+
+  # Choose action based on availability of nft
+  if command -v nft >/dev/null 2>&1; then
+    F2B_ACTION=nftables
+  else
+    F2B_ACTION=ufw
+  fi
+
+  [ -n "${F2B_ACTION:-}" ] || F2B_ACTION=ufw
+  print "Selected fail2ban action: $F2B_ACTION"
+
+  # Choose recidive logpath: prefer fail2ban log, else auth/secure, else create fail2ban log
+  RECIDIVE_LOGPATH="/var/log/fail2ban.log"
+  if [ -e /var/log/fail2ban.log ]; then
+    RECIDIVE_LOGPATH="/var/log/fail2ban.log"
+  elif [ -e /var/log/auth.log ]; then
+    RECIDIVE_LOGPATH="/var/log/auth.log"
+  elif [ -e /var/log/secure ]; then
+    RECIDIVE_LOGPATH="/var/log/secure"
+  else
+    RECIDIVE_LOGPATH="/var/log/fail2ban.log"
+    # create the file (run_cmd respects dry-run)
+    run_cmd touch "$RECIDIVE_LOGPATH"
+    run_cmd chown root:adm "$RECIDIVE_LOGPATH" || true
+    run_cmd chmod 0640 "$RECIDIVE_LOGPATH" || true
+  fi
+
+  cat > /tmp/secure_laptop_f2b.conf <<EOF
 [sshd]
 enabled = true
 port = $SSHD_PORT
@@ -460,25 +528,28 @@ bantime = 86400
 findtime = 86400
 EOF
 
-run_cmd mkdir -p "$F2B_JAIL_DIR"
-run_cmd mv /tmp/secure_laptop_f2b.conf "$F2B_CONF_FILE"
-echo "$F2B_CONF_FILE" >> "${CREATED_FILES:-/dev/null}"
+  run_cmd mkdir -p "$F2B_JAIL_DIR"
+  run_cmd mv /tmp/secure_laptop_f2b.conf "$F2B_CONF_FILE"
+  echo "$F2B_CONF_FILE" >> "${CREATED_FILES:-/dev/null}"
 
-# Extra aggressive jails for remote access/screencast/audio/video/thumbnailer/sslh
-F2B_EXTRA_FILTER=/etc/fail2ban/filter.d/secure-laptop-auth.conf
-F2B_EXTRA_JAIL=/etc/fail2ban/jail.d/secure_laptop-extra.local
+  # Extra aggressive jails for remote access/screencast/audio/video/thumbnailer/sslh
+  F2B_EXTRA_FILTER=/etc/fail2ban/filter.d/secure-laptop-auth.conf
+  F2B_EXTRA_JAIL=/etc/fail2ban/jail.d/secure_laptop-extra.local
+  F2B_DISABLE_JAIL=/etc/fail2ban/jail.d/zzz-secure_laptop-disable-invalid.conf
+  F2B_JAILS_LOCAL=/etc/fail2ban/jails.local
+  F2B_JAILS_LOCAL_D=/etc/fail2ban/jail.d/jails.local
 
-cat > /tmp/secure_laptop_auth_filter.conf <<'EOF'
+  cat > /tmp/secure_laptop_auth_filter.conf <<'EOF'
 [Definition]
 failregex = (?i)^.*(authentication|login|auth).*?(failed|failure|invalid|denied).*?(from|rhost=|host=|ip=)\s*<HOST>.*$
             (?i)^.*Failed .*?(from|rhost=|host=|ip=)\s*<HOST>.*$
 ignoreregex =
 EOF
 
-run_cmd mv /tmp/secure_laptop_auth_filter.conf "$F2B_EXTRA_FILTER"
-echo "$F2B_EXTRA_FILTER" >> "${CREATED_FILES:-/dev/null}"
+  run_cmd mv /tmp/secure_laptop_auth_filter.conf "$F2B_EXTRA_FILTER"
+  echo "$F2B_EXTRA_FILTER" >> "${CREATED_FILES:-/dev/null}"
 
-cat > /tmp/secure_laptop_extra_jails.conf <<EOF
+  cat > /tmp/secure_laptop_extra_jails.conf <<EOF
 [DEFAULT]
 bantime = -1
 findtime = 1m
@@ -573,19 +644,65 @@ journalmatch = _SYSTEMD_UNIT=gnome-desktop-thumbnailer.service
 action = $F2B_ACTION
 EOF
 
-run_cmd mv /tmp/secure_laptop_extra_jails.conf "$F2B_EXTRA_JAIL"
-echo "$F2B_EXTRA_JAIL" >> "${CREATED_FILES:-/dev/null}"
+  run_cmd mv /tmp/secure_laptop_extra_jails.conf "$F2B_EXTRA_JAIL"
+  echo "$F2B_EXTRA_JAIL" >> "${CREATED_FILES:-/dev/null}"
 
-# Restart fail2ban
-if command -v systemctl >/dev/null 2>&1; then
-  run_cmd systemctl restart fail2ban || run_cmd service fail2ban restart || true
+  cat > /tmp/secure_laptop_disable_jails.conf <<'EOF'
+[apache-common]
+enabled = false
+
+[nginx-error-common]
+enabled = false
+EOF
+
+  run_cmd mv /tmp/secure_laptop_disable_jails.conf "$F2B_DISABLE_JAIL"
+  echo "$F2B_DISABLE_JAIL" >> "${CREATED_FILES:-/dev/null}"
+
+  # Remove invalid include-only jails that reference filters without [Definition]
+  remove_invalid_f2b_jails() {
+    local f="$1"
+    [ -f "$f" ] || return 0
+
+    backup_file "$f"
+
+    local tmp
+    tmp="/tmp/secure_laptop_f2b_jails_$(basename "$f").tmp"
+    awk '
+      BEGIN {
+        skip = 0
+        bad["apache-common"] = 1
+        bad["nginx-error-common"] = 1
+      }
+      /^\[/ {
+        sec = $0
+        gsub(/^\[/, "", sec)
+        gsub(/\]$/, "", sec)
+        skip = (sec in bad)
+      }
+      {
+        if (!skip) print
+      }
+    ' "$f" > "$tmp"
+
+    run_cmd mv "$tmp" "$f"
+  }
+
+  remove_invalid_f2b_jails "$F2B_JAILS_LOCAL"
+  remove_invalid_f2b_jails "$F2B_JAILS_LOCAL_D"
+
+  # Restart fail2ban (if nftables action is used, restart again after nftables is up)
+  if command -v systemctl >/dev/null 2>&1; then
+    run_cmd systemctl restart fail2ban || run_cmd service fail2ban restart || true
+  else
+    run_cmd service fail2ban restart || true
+  fi
+
+  print "Fail2Ban status (summary):"
+  if ! fail2ban-client status; then
+    print "Fail2Ban status check failed (non-fatal)"
+  fi
 else
-  run_cmd service fail2ban restart || true
-fi
-
-print "Fail2Ban status (summary):"
-if ! fail2ban-client status; then
-  print "Fail2Ban status check failed (non-fatal)"
+  print "Skipping Fail2Ban setup (--no-fail2ban)"
 fi
 
 # Optional nftables configuration
@@ -602,8 +719,10 @@ fi
 if [ "$ENABLE_NFT" -eq 1 ]; then
   print "Configuring basic nftables ruleset"
   ensure_package nftables || true
+  disable_firewalld
 
   backup_file /etc/nftables.conf
+  run_cmd nft flush table inet filter || true
 
   cat > /tmp/secure_laptop_nft.conf <<'NFT'
 #!/usr/sbin/nft -f
@@ -621,6 +740,10 @@ table inet filter {
 
     # allow established/related
     ct state established,related accept
+
+    # deny incoming from local subnets (RFC1918) and IPv6 ULA
+    ip saddr {10.0.0.0/8,172.16.0.0/12,192.168.0.0/16} ct state new drop
+    ip6 saddr fc00::/7 ct state new drop
 
     # allow ICMP (useful for diagnostics)
     ip protocol icmp accept
@@ -646,10 +769,22 @@ NFT
 
   run_cmd mv /tmp/secure_laptop_nft.conf /etc/nftables.conf
   echo "/etc/nftables.conf" >> "${CREATED_FILES:-/dev/null}"
-  run_cmd systemctl enable --now nftables || run_cmd service nftables start || true
+  # Load ruleset immediately to ensure runtime tables exist
+  run_cmd nft -f /etc/nftables.conf || true
+  if systemd_available; then
+    run_cmd systemctl enable --now nftables || true
+  elif command -v service >/dev/null 2>&1; then
+    run_cmd service nftables start || true
+  fi
   run_cmd nft list ruleset || true
-  # Also deny local subnets in nft rules (runtime)
-  add_deny_local_subnets
+
+  if [ "$NO_FAIL2BAN" -eq 0 ] && [ "${F2B_ACTION:-}" = "nftables" ]; then
+    if command -v systemctl >/dev/null 2>&1; then
+      run_cmd systemctl restart fail2ban || run_cmd service fail2ban restart || true
+    else
+      run_cmd service fail2ban restart || true
+    fi
+  fi
 fi
 
 print "All done. Summary and next steps:"
@@ -657,7 +792,11 @@ if [ "$DRY_RUN" -eq 1 ]; then
   print "Script ran in DRY-RUN mode; no persistent changes made."
 else
   print "UFW: $(ufw status verbose 2>/dev/null || echo 'not configured')"
-  print "Fail2Ban: $(fail2ban-client status 2>/dev/null || echo 'not running')"
+  if [ "$NO_FAIL2BAN" -eq 0 ]; then
+    print "Fail2Ban: $(fail2ban-client status 2>/dev/null || echo 'not running')"
+  else
+    print "Fail2Ban: skipped"
+  fi
   if [ "$ENABLE_NFT" -eq 1 ]; then
     print "nftables: OK (ruleset shown above)"
   fi
@@ -724,8 +863,8 @@ harden_generators() {
 
 # Install a systemd service+timer to run the hardening periodically
 install_generator_timer() {
-  if ! command -v systemctl >/dev/null 2>&1; then
-    print "systemctl not found; skipping timer/service installation"
+  if ! systemd_available; then
+    print "systemd not available; skipping timer/service installation"
     return 0
   fi
 
@@ -791,8 +930,8 @@ install_generator_timer
 # Disable services, timers, streaming and recording services
 disable_service_and_timer() {
   local svc="$1"
-  if ! command -v systemctl >/dev/null 2>&1; then
-    print "systemctl not found; skipping disable/mask for $svc"
+  if ! systemd_available; then
+    print "systemd not available; skipping disable/mask for $svc"
     return 0
   fi
   if systemctl list-unit-files --type=service | grep -q "^${svc}.service"; then
@@ -864,6 +1003,7 @@ tighten_nftables() {
 
   print "Applying tightened nftables ruleset"
   backup_file /etc/nftables.conf
+  run_cmd nft flush table inet filter || true
 
   cat > /tmp/secure_laptop_nft_tight.conf <<'NFT'
 #!/usr/sbin/nft -f
@@ -898,7 +1038,7 @@ table inet filter {
 
     # Explicitly drop obvious exploit vectors
     tcp flags & (syn|fin) == (syn|fin) drop
-    tcp mss clamp to 1452
+    tcp option maxseg size set 1452
   }
 
   chain forward { type filter hook forward priority 0; policy drop; }
@@ -909,6 +1049,8 @@ NFT
 
   run_cmd mv /tmp/secure_laptop_nft_tight.conf /etc/nftables.conf
   echo "/etc/nftables.conf" >> "${CREATED_FILES:-/dev/null}"
+  # Load tightened ruleset even if service restart fails
+  run_cmd nft -f /etc/nftables.conf || true
   run_cmd systemctl restart nftables || run_cmd service nftables restart || true
   run_cmd nft list ruleset || true
 }
@@ -959,28 +1101,32 @@ check_components() {
   fi
 
   # Fail2Ban check
-  if command -v fail2ban-client >/dev/null 2>&1; then
-    if systemctl is-active --quiet fail2ban 2>/dev/null || service fail2ban status >/dev/null 2>&1; then
-      if fail2ban-client status | grep -q 'sshd'; then
-        print "Fail2Ban: OK (sshd jail present)"
+  if [ "$NO_FAIL2BAN" -eq 0 ]; then
+    if command -v fail2ban-client >/dev/null 2>&1; then
+      if (systemd_available && systemctl is-active --quiet fail2ban 2>/dev/null) || service fail2ban status >/dev/null 2>&1; then
+        if fail2ban-client status 2>/dev/null | grep -q 'sshd'; then
+          print "Fail2Ban: OK (sshd jail present)"
+        else
+          print "ERROR: Fail2Ban running but sshd jail missing"; errs=$((errs+1))
+        fi
       else
-        print "ERROR: Fail2Ban running but sshd jail missing"; errs=$((errs+1))
+        print "ERROR: Fail2Ban not running"; errs=$((errs+1))
       fi
     else
-      print "ERROR: Fail2Ban not running"; errs=$((errs+1))
+      if [ "$DRY_RUN" -eq 1 ]; then
+        print "Skip: fail2ban not installed (dry-run)"
+      else
+        print "ERROR: fail2ban not installed"; errs=$((errs+1))
+      fi
     fi
   else
-    if [ "$DRY_RUN" -eq 1 ]; then
-      print "Skip: fail2ban not installed (dry-run)"
-    else
-      print "ERROR: fail2ban not installed"; errs=$((errs+1))
-    fi
+    print "Fail2Ban: skipped"
   fi
 
   # nftables check
   if [ "$ENABLE_NFT" -eq 1 ]; then
     if command -v nft >/dev/null 2>&1; then
-      if nft list ruleset | grep -q 'table inet filter'; then
+      if nft list ruleset 2>/dev/null | grep -Eq 'table inet (filter|secure_laptop)'; then
         print "nftables: OK"
       else
         print "ERROR: nftables ruleset missing"; errs=$((errs+1))
